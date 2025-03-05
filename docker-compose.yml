@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  server:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    image: agent-ia-rag
+    container_name: agent-ia-rag
+    volumes:
+      - ./:/app
