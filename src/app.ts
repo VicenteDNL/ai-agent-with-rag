@@ -11,19 +11,20 @@ import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { ModelManager } from "./modelManager";
 import { EmbeddingsManager } from "./embeddingsManager";
+import { VectorStoreManager } from "./vectorStoreManager";
+import { PGVectorStore } from "@langchain/community/vectorstores/pgvector";
 
 class App {
   protected modelManager: ModelManager;
-  protected vectorStore: MemoryVectorStore;
+  protected vectorStore: Promise<PGVectorStore>;
 
   constructor() {
     this.modelManager = new ModelManager();
 
     const embeddings = new EmbeddingsManager().instance();
 
-    this.vectorStore = new MemoryVectorStore(embeddings);
+    this.vectorStore = new VectorStoreManager(embeddings).instance();
   }
-
   async docs() {
     // Load and chunk contents of blog
     const pTagSelector = "p";
@@ -44,6 +45,21 @@ class App {
   }
 
   async execute() {
+    const vector = await this.vectorStore;
+    const filter = { source: "https://example.com" };
+
+    const similaritySearchResults = await vector.similaritySearch(
+      "biology",
+      2,
+      filter
+    );
+
+    for (const doc of similaritySearchResults) {
+      console.log(
+        `* ${doc.pageContent} [${JSON.stringify(doc.metadata, null)}]`
+      );
+    }
+    return;
     const splitter = this.spliter();
 
     const docs = await this.docs();
@@ -51,7 +67,7 @@ class App {
     const allSplits = await splitter.splitDocuments(docs);
 
     // Index chunks
-    await this.vectorStore.addDocuments(allSplits);
+    vector.addDocuments(allSplits);
 
     // Define prompt for question-answering
     const promptTemplate = await pull<ChatPromptTemplate>("rlm/rag-prompt");
@@ -69,9 +85,7 @@ class App {
 
     // Define application steps
     const retrieve = async (state: typeof InputStateAnnotation.State) => {
-      const retrievedDocs = await this.vectorStore.similaritySearch(
-        state.question
-      );
+      const retrievedDocs = await vector.similaritySearch(state.question);
       return { context: retrievedDocs };
     };
 
@@ -101,10 +115,10 @@ class App {
 var pipeline = new App();
 
 const graph = pipeline.execute();
-let inputs = { question: "What is Task Decomposition?" };
+// let inputs = { question: "What is Task Decomposition?" };
 
-graph.then((graph) => {
-  graph.invoke(inputs).then((result) => {
-    console.log(result.answer);
-  });
-});
+// graph.then((graph) => {
+//   graph.invoke(inputs).then((result) => {
+//     console.log(result.answer);
+//   });
+// });

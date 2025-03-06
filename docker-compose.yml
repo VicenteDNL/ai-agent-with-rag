@@ -9,3 +9,16 @@ services:
     container_name: agent-ia-rag
     volumes:
       - ./:/app
+  vector-db:
+    build:
+      context: ./
+      dockerfile: db.dockerfile
+    image: vector-db
+    container_name: vector-db
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_DB=api
+      - POSTGRES_USER=myuse
